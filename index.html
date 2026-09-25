@@ -12,10 +12,10 @@
   <style>
     :root {
       --bg-dark: #ffffff;
-      --header-red: #e11d48;    /* Header red banner */
-      --card-bg: #2b32f6;       /* Royal blue card color */
+      --header-red: #e11d48;    /* Exact header red banner */
+      --card-bg: #2b32f6;       /* Exact royal blue card color */
       --card-title-color: #ffffff;
-      --status-green: #7cd936;  /* Vibrant lime green pill color */
+      --status-green: #7cd936;  /* Exact vibrant lime green pill color */
       --status-red: #ef4444;    /* Active issue red */
       --text-main: #0f172a;
       --panel-border: #e2e8f0;
@@ -250,7 +250,7 @@
         <div class="value" id="issues-count">0</div>
       </div>
 
-      <!-- Center 3 Campuses placeholder containers -->
+      <!-- Center 3 Campuses placeholder containers dynamically injected -->
       <div id="cebu-card-slot" style="display:contents;"></div>
       <div id="davao-card-slot" style="display:contents;"></div>
       <div id="laoag-card-slot" style="display:contents;"></div>
@@ -279,6 +279,7 @@
   <script>
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
 
+    // Exact Campus Layout Structure (41 Total Items across 13 Campuses)
     const campusLayout = {
       row1: [
         { name: 'MAIN', items: ['Video Wall', 'Link Status', 'Camera', 'Monitor', 'LED Lights'] },
@@ -301,8 +302,7 @@
       ]
     };
 
-    let activeIssuesMap = {}; 
-    let issueDetailsMap = {}; 
+    let activeIssuesList = [];
 
     const equipLabels = {
       'Video Wall': 'VIDEOWALL',
@@ -312,15 +312,8 @@
       'LED Lights': 'LIGHTS'
     };
 
-    // Cleans "Main Campus" -> "MAIN"
-    function normalizeCampusName(raw) {
-      if (!raw) return '';
-      return raw.toString().toUpperCase().replace('CAMPUS', '').trim();
-    }
-
-    // Maps string types like "Video Wall" or "LED Lights" into our 5 equipment keys
-    function mapToLayoutEquipKey(rawType, rawDetails) {
-      const text = `${rawType || ''} ${rawDetails || ''}`.toLowerCase();
+    function mapEquipmentType(rawVal, detailVal) {
+      const text = `${rawVal || ''} ${detailVal || ''}`.toLowerCase();
       if (text.includes('video wall') || text.includes('videowall') || text.includes('projector')) return 'Video Wall';
       if (text.includes('camera')) return 'Camera';
       if (text.includes('monitor') || text.includes('tv') || text.includes('tricaster') || text.includes('multiview')) return 'Monitor';
@@ -342,52 +335,49 @@
     }
 
     function processIssues(rows) {
-      activeIssuesMap = {};
-      issueDetailsMap = {};
+      activeIssuesList = [];
 
       rows.forEach(row => {
-        // Find column values dynamically
-        const getValue = (pattern) => {
-          const key = Object.keys(row).find(k => k.toLowerCase().includes(pattern.toLowerCase()));
-          return key ? row[key] : '';
+        const getCol = (p) => {
+          const k = Object.keys(row).find(key => key.toLowerCase().includes(p.toLowerCase()));
+          return k ? row[k] : '';
         };
 
-        const rawCampus = getValue('campus') || row['What Campus?'] || '';
-        const campus = normalizeCampusName(rawCampus);
-        
-        const statusVal = (getValue('status') || '').toUpperCase().trim();
-        const rawType = getValue('equipment') || getValue('type') || '';
-        const detailsVal = getValue('detail') || getValue('issue') || '';
-        const timestamp = getValue('timestamp') || getValue('date') || '';
+        const rawCampus = getCol('campus') || row['What Campus?'] || '';
+        const campus = rawCampus.toUpperCase().replace('CAMPUS', '').trim();
+        const statusVal = (getCol('status') || '').toUpperCase().trim();
+        const rawType = getCol('equipment') || getCol('type') || '';
+        const detailsVal = getCol('detail') || getCol('issue') || '';
+        const timestamp = getCol('timestamp') || getCol('date') || '';
 
-        // Check explicit pending state
+        // Only track active PENDING issues (Ignore resolved ones completely)
         const isPending = statusVal === 'PENDING' || statusVal.includes('UNRESOLVED');
 
         if (isPending && campus) {
-          const equipKey = mapToLayoutEquipKey(rawType, detailsVal);
+          let equipKey = mapEquipmentType(rawType, detailsVal);
+
+          if (!equipKey) {
+            if (row['Video Wall / LED Wall / Projector']) equipKey = 'Video Wall';
+            else if (row['Camera']) equipKey = 'Camera';
+            else if (row['Monitor']) equipKey = 'Monitor';
+            else if (row['Link Status']) equipKey = 'Link Status';
+            else if (row['LED Lights & DMX Controller']) equipKey = 'LED Lights';
+          }
 
           if (equipKey) {
-            const key = `${campus}-${equipKey}`;
-            activeIssuesMap[key] = true;
-
-            if (!issueDetailsMap[key]) issueDetailsMap[key] = [];
-            
-            const detailText = detailsVal || rawType || 'Active Issue Reported';
-            const exists = issueDetailsMap[key].some(i => i.details === detailText);
-            
-            if (!exists) {
-              issueDetailsMap[key].push({
-                details: detailText,
-                date: timestamp
-              });
-            }
+            activeIssuesList.push({
+              campus: campus,
+              equipment: equipKey,
+              details: detailsVal || rawType || 'Active Issue Reported',
+              date: timestamp
+            });
           }
         }
       });
     }
 
     function renderDashboard() {
-      let totalEquipUnits = 0;
+      const TOTAL_ITEMS = 41; // Fixed total item count across all campuses
       let activeIssueCount = 0;
 
       // Render Rows
@@ -399,27 +389,25 @@
       renderSingleCampusCard('davao-card-slot', campusLayout.row3[1]);
       renderSingleCampusCard('laoag-card-slot', campusLayout.row3[2]);
 
-      // Calculate KPI metrics across all cards
+      // Count red/active issues across all 41 items
       const allCampuses = [...campusLayout.row1, ...campusLayout.row2, ...campusLayout.row3];
       
       allCampuses.forEach(campus => {
         campus.items.forEach(equipKey => {
-          totalEquipUnits++;
-          const lookupKey = `${campus.name}-${equipKey}`;
-          
-          if (activeIssuesMap[lookupKey]) {
+          const hasIssue = activeIssuesList.some(i => 
+            i.campus.includes(campus.name) && i.equipment === equipKey
+          );
+          if (hasIssue) {
             activeIssueCount++;
           }
         });
       });
 
-      // Update Circle Values
+      // Update KPI Circles
       document.getElementById('issues-count').innerText = activeIssueCount;
 
-      const workingPercent = totalEquipUnits > 0 
-        ? Math.round(((totalEquipUnits - activeIssueCount) / totalEquipUnits) * 100) 
-        : 100;
-
+      // Calculate percentage using (Total - Issues) / Total (41)
+      const workingPercent = Math.round(((TOTAL_ITEMS - activeIssueCount) / TOTAL_ITEMS) * 100);
       document.getElementById('working-percent').innerText = `${workingPercent}%`;
     }
 
@@ -427,10 +415,12 @@
       let buttonsHTML = `<div class="campus-title">${campus.name}</div>`;
 
       campus.items.forEach(equipKey => {
-        const lookupKey = `${campus.name}-${equipKey}`;
-        const hasActiveIssue = activeIssuesMap[lookupKey] || false;
-        const statusClass = hasActiveIssue ? 'status-error' : 'status-ok';
+        const hasActiveIssue = activeIssuesList.some(i => 
+          i.campus.includes(campus.name) && i.equipment === equipKey
+        );
 
+        // Strict Red or Green status
+        const statusClass = hasActiveIssue ? 'status-error' : 'status-ok';
         const label = equipLabels[equipKey] || equipKey;
 
         buttonsHTML += `
@@ -465,16 +455,17 @@
     }
 
     function openDetails(campusName, equipKey) {
-      const lookupKey = `${campusName}-${equipKey}`;
-      const issues = issueDetailsMap[lookupKey] || [];
+      const matched = activeIssuesList.filter(i => 
+        i.campus.includes(campusName) && i.equipment === equipKey
+      );
 
       document.getElementById('drawer-title').innerText = `${campusName} - ${equipLabels[equipKey] || equipKey}`;
       const content = document.getElementById('drawer-content');
       
-      if (issues.length === 0) {
+      if (matched.length === 0) {
         content.innerHTML = `<p style="color: var(--status-green); font-weight: 800; text-align: center; margin-top: 20px;"><i class="fa-solid fa-circle-check"></i> All systems operational. No active issues.</p>`;
       } else {
-        content.innerHTML = issues.map(i => `
+        content.innerHTML = matched.map(i => `
           <div class="issue-item">
             <div style="font-weight:800; margin-bottom:4px; font-size:13px; color:var(--status-red);">[ACTIVE PENDING ISSUE]</div>
             <div style="color:#334155; margin-bottom:6px; font-weight:500;">${i.details}</div>
@@ -490,7 +481,7 @@
       document.getElementById('drawer-overlay').style.display = 'none';
     }
 
-    // Initial Fetch and Auto Polling
+    // Initial Fetch & 2-Minute Polling
     fetchCSV();
     setInterval(fetchCSV, 120000);
   </script>
