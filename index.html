@@ -16,7 +16,8 @@
       --card-bg: #2b32f6;       /* Exact royal blue card color */
       --card-title-color: #ffffff;
       --status-green: #7cd936;  /* Exact vibrant lime green pill color */
-      --status-red: #ef4444;    /* Active issue red */
+      --status-red: #ef4444;    /* Active issue / defective red */
+      --status-orange: #f59e0b; /* Resolved issue orange */
       --text-main: #0f172a;
       --panel-border: #e2e8f0;
     }
@@ -139,6 +140,11 @@
       animation: pulse-red 1.5s infinite;
     }
 
+    .equip-button.status-resolved {
+      background-color: var(--status-green); /* Marked green as resolved/working */
+      color: #ffffff;
+    }
+
     @keyframes pulse-red {
       0% { opacity: 1; }
       50% { opacity: 0.75; }
@@ -161,6 +167,15 @@
       text-align: center;
       padding: 16px;
       box-shadow: 0 10px 22px rgba(43, 50, 246, 0.25);
+      transition: border-color 0.3s ease;
+    }
+
+    .circle-card.status-circle-green {
+      border: 4px solid var(--status-green);
+    }
+
+    .circle-card.status-circle-red {
+      border: 4px solid var(--status-red);
     }
 
     .circle-card .label {
@@ -226,6 +241,10 @@
       font-size: 12px;
       border-left: 5px solid var(--status-red);
     }
+
+    .issue-item.resolved {
+      border-left-color: var(--status-green);
+    }
   </style>
 </head>
 <body>
@@ -245,8 +264,8 @@
     <!-- BOTTOM ROW (ISSUES CIRCLE + 3 CAMPUSES + WORKING % CIRCLE) -->
     <div class="campus-grid" id="row-3">
       <!-- Issues Metric Circle (Left) -->
-      <div class="circle-card">
-        <div class="label">ISSUES</div>
+      <div class="circle-card" id="issues-circle">
+        <div class="label">DEFECTIVE</div>
         <div class="value" id="issues-count">0</div>
       </div>
 
@@ -256,7 +275,7 @@
       <div id="laoag-card-slot" style="display:contents;"></div>
 
       <!-- Working Percentage Circle (Right) -->
-      <div class="circle-card">
+      <div class="circle-card" id="percent-circle">
         <div class="label">WORKING</div>
         <div class="value" id="working-percent">100%</div>
       </div>
@@ -277,9 +296,9 @@
   </div>
 
   <script>
-    const BASE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
 
-    // 13 Campuses structure (Total 41 items)
+    // Exact Campus Layout Structure
     const campusLayout = {
       row1: [
         { name: 'MAIN', items: ['Video Wall', 'Link Status', 'Camera', 'Monitor', 'LED Lights'] },
@@ -302,7 +321,7 @@
       ]
     };
 
-    let activeIssuesList = [];
+    let processedIssues = [];
 
     const equipLabels = {
       'Video Wall': 'VIDEOWALL',
@@ -312,21 +331,8 @@
       'LED Lights': 'LIGHTS'
     };
 
-    function mapEquipmentType(rawVal, detailVal) {
-      const text = `${rawVal || ''} ${detailVal || ''}`.toLowerCase();
-      if (text.includes('video wall') || text.includes('videowall') || text.includes('projector')) return 'Video Wall';
-      if (text.includes('camera')) return 'Camera';
-      if (text.includes('monitor') || text.includes('tv') || text.includes('tricaster') || text.includes('multiview')) return 'Monitor';
-      if (text.includes('link') || text.includes('modem')) return 'Link Status';
-      if (text.includes('led') || text.includes('light') || text.includes('dmx')) return 'LED Lights';
-      return null;
-    }
-
     async function fetchCSV() {
-      // Force cache-busting parameter to guarantee fresh updates on every call
-      const cacheBusterUrl = `${BASE_CSV_URL}&_cb=${Date.now()}`;
-
-      Papa.parse(cacheBusterUrl, {
+      Papa.parse(CSV_URL, {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -338,91 +344,101 @@
     }
 
     function processIssues(rows) {
-      activeIssuesList = [];
+      processedIssues = [];
 
       rows.forEach(row => {
-        const getCol = (p) => {
-          const k = Object.keys(row).find(key => key.toLowerCase().includes(p.toLowerCase()));
-          return k ? row[k] : '';
+        const campus = (row['What Campus?'] || '').toUpperCase().trim();
+        const reportedDate = row['Timestamp'] || row['Date'] || '';
+
+        const checkEquip = (colVal, detailCol, equipType) => {
+          if (colVal && typeof colVal === 'string') {
+            const val = colVal.toLowerCase().trim();
+            const isExplicitIssue = !val.includes('good') && !val.includes('no issue') && val !== '';
+            const isResolved = val.includes('resolved') || val.includes('working') || val.includes('good');
+
+            if (!val.includes('good') && !val.includes('no issue')) {
+              processedIssues.push({
+                campus: campus,
+                equipment: equipType,
+                details: row[detailCol] || colVal,
+                isResolved: isResolved,
+                date: reportedDate
+              });
+            }
+          }
         };
 
-        const rawCampus = getCol('campus') || row['What Campus?'] || '';
-        const campus = rawCampus.toUpperCase().replace('CAMPUS', '').trim();
-        const statusVal = (getCol('status') || '').toUpperCase().trim();
-        const rawType = getCol('equipment') || getCol('type') || '';
-        const detailsVal = getCol('detail') || getCol('issue') || '';
-        const timestamp = getCol('timestamp') || getCol('date') || '';
-
-        // Check if item status is active / pending
-        const isPending = statusVal === 'PENDING' || statusVal.includes('UNRESOLVED');
-
-        if (isPending && campus) {
-          let equipKey = mapEquipmentType(rawType, detailsVal);
-
-          if (!equipKey) {
-            if (row['Video Wall / LED Wall / Projector']) equipKey = 'Video Wall';
-            else if (row['Camera']) equipKey = 'Camera';
-            else if (row['Monitor']) equipKey = 'Monitor';
-            else if (row['Link Status']) equipKey = 'Link Status';
-            else if (row['LED Lights & DMX Controller']) equipKey = 'LED Lights';
-          }
-
-          if (equipKey) {
-            activeIssuesList.push({
-              campus: campus,
-              equipment: equipKey,
-              details: detailsVal || rawType || 'Active Issue Reported',
-              date: timestamp
-            });
-          }
-        }
+        checkEquip(row['Video Wall / LED Wall / Projector'], 'Video Wall / Projector Issue', 'Video Wall');
+        checkEquip(row['Camera'], 'Camera Issue', 'Camera');
+        checkEquip(row['Monitor'], 'Monitor Issue', 'Monitor');
+        checkEquip(row['Link Status'], 'Link Issue', 'Link Status');
+        checkEquip(row['LED Lights & DMX Controller'], 'LED Lights / DMX Controller Issue', 'LED Lights');
       });
     }
 
     function renderDashboard() {
-      const TOTAL_ITEMS = 41; // Fixed total item count
-      let activeIssueCount = 0;
-
-      // Render Rows
+      // Render Row 1 & Row 2
       renderRowGrid('row-1', campusLayout.row1);
       renderRowGrid('row-2', campusLayout.row2);
 
-      // Render Row 3 Slots
+      // Render Row 3 Cards into slots
       renderSingleCampusCard('cebu-card-slot', campusLayout.row3[0]);
       renderSingleCampusCard('davao-card-slot', campusLayout.row3[1]);
       renderSingleCampusCard('laoag-card-slot', campusLayout.row3[2]);
 
-      // Calculate red items across all 41 items
-      const allCampuses = [...campusLayout.row1, ...campusLayout.row2, ...campusLayout.row3];
-      
-      allCampuses.forEach(campus => {
-        campus.items.forEach(equipKey => {
-          const hasIssue = activeIssuesList.some(i => 
-            i.campus.includes(campus.name) && i.equipment === equipKey
-          );
-          if (hasIssue) {
-            activeIssueCount++;
-          }
-        });
+      // Calculate totals based on rendered button states (Green vs Red)
+      const allButtons = document.querySelectorAll('.equip-button');
+      let totalUnits = allButtons.length;
+      let greenCount = 0;
+      let redCount = 0;
+
+      allButtons.forEach(btn => {
+        if (btn.classList.contains('status-error')) {
+          redCount++;
+        } else {
+          greenCount++;
+        }
       });
 
-      // Update Circles
-      document.getElementById('issues-count').innerText = activeIssueCount;
+      // Calculate working percentage: (Green Count / Total Units) * 100
+      const workingPercent = totalUnits > 0 
+        ? Math.round((greenCount / totalUnits) * 100) 
+        : 100;
 
-      const workingPercent = Math.round(((TOTAL_ITEMS - activeIssueCount) / TOTAL_ITEMS) * 100);
+      // Update KPI Circles
+      document.getElementById('issues-count').innerText = redCount;
       document.getElementById('working-percent').innerText = `${workingPercent}%`;
+
+      // Update Border styling for metrics
+      const percentCircle = document.getElementById('percent-circle');
+      const issuesCircle = document.getElementById('issues-circle');
+      
+      if (workingPercent === 100) {
+        percentCircle.className = 'circle-card status-circle-green';
+        issuesCircle.className = 'circle-card status-circle-green';
+      } else {
+        percentCircle.className = 'circle-card status-circle-red';
+        issuesCircle.className = 'circle-card status-circle-red';
+      }
     }
 
     function createCampusCardHTML(campus) {
       let buttonsHTML = `<div class="campus-title">${campus.name}</div>`;
 
       campus.items.forEach(equipKey => {
-        const hasActiveIssue = activeIssuesList.some(i => 
+        const matchedIssues = processedIssues.filter(i => 
           i.campus.includes(campus.name) && i.equipment === equipKey
         );
 
-        // Strict Red vs Green Status
-        const statusClass = hasActiveIssue ? 'status-error' : 'status-ok';
+        let statusClass = 'status-ok'; // Default Working/Good -> GREEN
+        const hasActiveIssue = matchedIssues.some(i => !i.isResolved);
+
+        if (hasActiveIssue) {
+          statusClass = 'status-error'; // Defective -> RED
+        } else {
+          statusClass = 'status-ok';    // Resolved or Working/Good -> GREEN
+        }
+
         const label = equipLabels[equipKey] || equipKey;
 
         buttonsHTML += `
@@ -457,7 +473,7 @@
     }
 
     function openDetails(campusName, equipKey) {
-      const matched = activeIssuesList.filter(i => 
+      const matched = processedIssues.filter(i => 
         i.campus.includes(campusName) && i.equipment === equipKey
       );
 
@@ -465,11 +481,13 @@
       const content = document.getElementById('drawer-content');
       
       if (matched.length === 0) {
-        content.innerHTML = `<p style="color: var(--status-green); font-weight: 800; text-align: center; margin-top: 20px;"><i class="fa-solid fa-circle-check"></i> All systems operational. No active issues.</p>`;
+        content.innerHTML = `<p style="color: var(--status-green); font-weight: 800; text-align: center; margin-top: 20px;"><i class="fa-solid fa-circle-check"></i> System operational / Good condition.</p>`;
       } else {
         content.innerHTML = matched.map(i => `
-          <div class="issue-item">
-            <div style="font-weight:800; margin-bottom:4px; font-size:13px; color:var(--status-red);">[ACTIVE PENDING ISSUE]</div>
+          <div class="issue-item ${i.isResolved ? 'resolved' : ''}">
+            <div style="font-weight:800; margin-bottom:4px; font-size:13px;">
+              ${i.isResolved ? '<span style="color:var(--status-green)">[RESOLVED / GOOD]</span>' : '<span style="color:var(--status-red)">[DEFECTIVE]</span>'}
+            </div>
             <div style="color:#334155; margin-bottom:6px; font-weight:500;">${i.details}</div>
             <div style="font-size:10px; color:#94a3b8; font-weight:600;">${i.date}</div>
           </div>
@@ -483,9 +501,9 @@
       document.getElementById('drawer-overlay').style.display = 'none';
     }
 
-    // Initial Fetch & Refresh every 5 seconds for fast live updates
+    // Initial Fetch and 2-Minute Polling
     fetchCSV();
-    setInterval(fetchCSV, 5000);
+    setInterval(fetchCSV, 120000);
   </script>
 </body>
 </html>
