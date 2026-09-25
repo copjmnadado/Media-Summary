@@ -277,9 +277,9 @@
   </div>
 
   <script>
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
+    const BASE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
 
-    // Exact Campus Layout Structure (41 Total Items across 13 Campuses)
+    // 13 Campuses structure (Total 41 items)
     const campusLayout = {
       row1: [
         { name: 'MAIN', items: ['Video Wall', 'Link Status', 'Camera', 'Monitor', 'LED Lights'] },
@@ -323,7 +323,10 @@
     }
 
     async function fetchCSV() {
-      Papa.parse(CSV_URL, {
+      // Force cache-busting parameter to guarantee fresh updates on every call
+      const cacheBusterUrl = `${BASE_CSV_URL}&_cb=${Date.now()}`;
+
+      Papa.parse(cacheBusterUrl, {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -350,7 +353,7 @@
         const detailsVal = getCol('detail') || getCol('issue') || '';
         const timestamp = getCol('timestamp') || getCol('date') || '';
 
-        // Only track active PENDING issues (Ignore resolved ones completely)
+        // Check if item status is active / pending
         const isPending = statusVal === 'PENDING' || statusVal.includes('UNRESOLVED');
 
         if (isPending && campus) {
@@ -377,7 +380,7 @@
     }
 
     function renderDashboard() {
-      const TOTAL_ITEMS = 41; // Fixed total item count across all campuses
+      const TOTAL_ITEMS = 41; // Fixed total item count
       let activeIssueCount = 0;
 
       // Render Rows
@@ -389,7 +392,7 @@
       renderSingleCampusCard('davao-card-slot', campusLayout.row3[1]);
       renderSingleCampusCard('laoag-card-slot', campusLayout.row3[2]);
 
-      // Count red/active issues across all 41 items
+      // Calculate red items across all 41 items
       const allCampuses = [...campusLayout.row1, ...campusLayout.row2, ...campusLayout.row3];
       
       allCampuses.forEach(campus => {
@@ -403,10 +406,9 @@
         });
       });
 
-      // Update KPI Circles
+      // Update Circles
       document.getElementById('issues-count').innerText = activeIssueCount;
 
-      // Calculate percentage using (Total - Issues) / Total (41)
       const workingPercent = Math.round(((TOTAL_ITEMS - activeIssueCount) / TOTAL_ITEMS) * 100);
       document.getElementById('working-percent').innerText = `${workingPercent}%`;
     }
@@ -419,7 +421,7 @@
           i.campus.includes(campus.name) && i.equipment === equipKey
         );
 
-        // Strict Red or Green status
+        // Strict Red vs Green Status
         const statusClass = hasActiveIssue ? 'status-error' : 'status-ok';
         const label = equipLabels[equipKey] || equipKey;
 
@@ -481,9 +483,9 @@
       document.getElementById('drawer-overlay').style.display = 'none';
     }
 
-    // Initial Fetch & 2-Minute Polling
+    // Initial Fetch & Refresh every 5 seconds for fast live updates
     fetchCSV();
-    setInterval(fetchCSV, 120000);
+    setInterval(fetchCSV, 5000);
   </script>
 </body>
 </html>
