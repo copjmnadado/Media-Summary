@@ -12,12 +12,11 @@
   <style>
     :root {
       --bg-dark: #ffffff;
-      --header-red: #e11d48;    /* Exact header red banner */
-      --card-bg: #2b32f6;       /* Exact royal blue card color */
+      --header-red: #e11d48;    /* Header red banner */
+      --card-bg: #2b32f6;       /* Royal blue card color */
       --card-title-color: #ffffff;
-      --status-green: #7cd936;  /* Exact vibrant lime green pill color */
+      --status-green: #7cd936;  /* Vibrant lime green pill color */
       --status-red: #ef4444;    /* Active issue red */
-      --status-orange: #f59e0b; /* Resolved issue orange */
       --text-main: #0f172a;
       --panel-border: #e2e8f0;
     }
@@ -140,11 +139,6 @@
       animation: pulse-red 1.5s infinite;
     }
 
-    .equip-button.status-resolved {
-      background-color: var(--status-orange);
-      color: #ffffff;
-    }
-
     @keyframes pulse-red {
       0% { opacity: 1; }
       50% { opacity: 0.75; }
@@ -234,7 +228,7 @@
     }
 
     .issue-item.resolved {
-      border-left-color: var(--status-orange);
+      border-left-color: var(--status-green);
     }
   </style>
 </head>
@@ -260,7 +254,7 @@
         <div class="value" id="issues-count">0</div>
       </div>
 
-      <!-- Center 3 Campuses placeholder containers dynamically injected -->
+      <!-- Center 3 Campuses placeholder containers -->
       <div id="cebu-card-slot" style="display:contents;"></div>
       <div id="davao-card-slot" style="display:contents;"></div>
       <div id="laoag-card-slot" style="display:contents;"></div>
@@ -289,7 +283,7 @@
   <script>
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
 
-    // Exact Campus Layout Structure
+    // Campus Layout Structure
     const campusLayout = {
       row1: [
         { name: 'MAIN', items: ['Video Wall', 'Link Status', 'Camera', 'Monitor', 'LED Lights'] },
@@ -413,15 +407,11 @@
           i.campus.includes(campus.name) && i.equipment === equipKey
         );
 
-        let statusClass = 'status-ok';
-        const hasActive = matchedIssues.some(i => !i.isResolved);
-        const hasResolved = matchedIssues.some(i => i.isResolved);
-
-        if (hasActive) {
-          statusClass = 'status-error';
-        } else if (hasResolved) {
-          statusClass = 'status-resolved';
-        }
+        // Strict Red vs. Green Logic:
+        // Turn RED only if there is an active unresolved issue.
+        // Turn GREEN if there are no issues OR if all reported issues are marked as resolved.
+        const hasActiveIssue = matchedIssues.some(i => !i.isResolved);
+        const statusClass = hasActiveIssue ? 'status-error' : 'status-ok';
 
         const label = equipLabels[equipKey] || equipKey;
 
@@ -465,12 +455,12 @@
       const content = document.getElementById('drawer-content');
       
       if (matched.length === 0) {
-        content.innerHTML = `<p style="color: var(--status-green); font-weight: 800; text-align: center; margin-top: 20px;"><i class="fa-solid fa-circle-check"></i> All systems operational. No active issues.</p>`;
+        content.innerHTML = `<p style="color: var(--status-green); font-weight: 800; text-align: center; margin-top: 20px;"><i class="fa-solid fa-circle-check"></i> All systems operational. No issues reported.</p>`;
       } else {
         content.innerHTML = matched.map(i => `
           <div class="issue-item ${i.isResolved ? 'resolved' : ''}">
             <div style="font-weight:800; margin-bottom:4px; font-size:13px;">
-              ${i.isResolved ? '<span style="color:var(--status-orange)">[RESOLVED LOG]</span>' : '<span style="color:var(--status-red)">[ACTIVE ISSUE]</span>'}
+              ${i.isResolved ? '<span style="color:var(--status-green)">[RESOLVED]</span>' : '<span style="color:var(--status-red)">[ACTIVE ISSUE]</span>'}
             </div>
             <div style="color:#334155; margin-bottom:6px; font-weight:500;">${i.details}</div>
             <div style="font-size:10px; color:#94a3b8; font-weight:600;">${i.date}</div>
