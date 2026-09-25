@@ -279,7 +279,6 @@
   <script>
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
 
-    // Campus Layout Structure
     const campusLayout = {
       row1: [
         { name: 'MAIN', items: ['Video Wall', 'Link Status', 'Camera', 'Monitor', 'LED Lights'] },
@@ -302,8 +301,8 @@
       ]
     };
 
-    let activeIssuesMap = {}; // Tracks active unresolved issues
-    let issueDetailsMap = {}; // Details for drawer view
+    let activeIssuesMap = {}; 
+    let issueDetailsMap = {}; 
 
     const equipLabels = {
       'Video Wall': 'VIDEOWALL',
@@ -312,6 +311,23 @@
       'Monitor': 'TV MONITOR',
       'LED Lights': 'LIGHTS'
     };
+
+    // Cleans "Main Campus" -> "MAIN"
+    function normalizeCampusName(raw) {
+      if (!raw) return '';
+      return raw.toString().toUpperCase().replace('CAMPUS', '').trim();
+    }
+
+    // Maps string types like "Video Wall" or "LED Lights" into our 5 equipment keys
+    function mapToLayoutEquipKey(rawType, rawDetails) {
+      const text = `${rawType || ''} ${rawDetails || ''}`.toLowerCase();
+      if (text.includes('video wall') || text.includes('videowall') || text.includes('projector')) return 'Video Wall';
+      if (text.includes('camera')) return 'Camera';
+      if (text.includes('monitor') || text.includes('tv') || text.includes('tricaster') || text.includes('multiview')) return 'Monitor';
+      if (text.includes('link') || text.includes('modem')) return 'Link Status';
+      if (text.includes('led') || text.includes('light') || text.includes('dmx')) return 'LED Lights';
+      return null;
+    }
 
     async function fetchCSV() {
       Papa.parse(CSV_URL, {
@@ -330,35 +346,43 @@
       issueDetailsMap = {};
 
       rows.forEach(row => {
-        const campus = (row['What Campus?'] || '').toUpperCase().trim();
-        const reportedDate = row['Timestamp'] || row['Date'] || '';
+        // Find column values dynamically
+        const getValue = (pattern) => {
+          const key = Object.keys(row).find(k => k.toLowerCase().includes(pattern.toLowerCase()));
+          return key ? row[key] : '';
+        };
 
-        const checkEquip = (colVal, detailCol, equipType) => {
-          if (!colVal || typeof colVal !== 'string') return;
+        const rawCampus = getValue('campus') || row['What Campus?'] || '';
+        const campus = normalizeCampusName(rawCampus);
+        
+        const statusVal = (getValue('status') || '').toUpperCase().trim();
+        const rawType = getValue('equipment') || getValue('type') || '';
+        const detailsVal = getValue('detail') || getValue('issue') || '';
+        const timestamp = getValue('timestamp') || getValue('date') || '';
 
-          const val = colVal.toLowerCase().trim();
-          const key = `${campus}-${equipType}`;
+        // Check explicit pending state
+        const isPending = statusVal === 'PENDING' || statusVal.includes('UNRESOLVED');
 
-          // Any text indicating resolved, fixed, cleared, good, or working = 100% operational
-          const isResolved = val.includes('resolved') || val.includes('fixed') || val.includes('cleared') || val.includes('good') || val.includes('no issue') || val.startsWith('working');
+        if (isPending && campus) {
+          const equipKey = mapToLayoutEquipKey(rawType, detailsVal);
 
-          if (!isResolved && val !== '') {
-            // Flag as an active issue
+          if (equipKey) {
+            const key = `${campus}-${equipKey}`;
             activeIssuesMap[key] = true;
 
             if (!issueDetailsMap[key]) issueDetailsMap[key] = [];
-            issueDetailsMap[key].push({
-              details: row[detailCol] || colVal,
-              date: reportedDate
-            });
+            
+            const detailText = detailsVal || rawType || 'Active Issue Reported';
+            const exists = issueDetailsMap[key].some(i => i.details === detailText);
+            
+            if (!exists) {
+              issueDetailsMap[key].push({
+                details: detailText,
+                date: timestamp
+              });
+            }
           }
-        };
-
-        checkEquip(row['Video Wall / LED Wall / Projector'], 'Video Wall / Projector Issue', 'Video Wall');
-        checkEquip(row['Camera'], 'Camera Issue', 'Camera');
-        checkEquip(row['Monitor'], 'Monitor Issue', 'Monitor');
-        checkEquip(row['Link Status'], 'Link Issue', 'Link Status');
-        checkEquip(row['LED Lights & DMX Controller'], 'LED Lights / DMX Controller Issue', 'LED Lights');
+        }
       });
     }
 
@@ -375,7 +399,7 @@
       renderSingleCampusCard('davao-card-slot', campusLayout.row3[1]);
       renderSingleCampusCard('laoag-card-slot', campusLayout.row3[2]);
 
-      // Calculate totals across all campuses
+      // Calculate KPI metrics across all cards
       const allCampuses = [...campusLayout.row1, ...campusLayout.row2, ...campusLayout.row3];
       
       allCampuses.forEach(campus => {
@@ -389,10 +413,9 @@
         });
       });
 
-      // Update Metric Circles
+      // Update Circle Values
       document.getElementById('issues-count').innerText = activeIssueCount;
 
-      // Calculate Working Percentage (Excludes active issues only)
       const workingPercent = totalEquipUnits > 0 
         ? Math.round(((totalEquipUnits - activeIssueCount) / totalEquipUnits) * 100) 
         : 100;
@@ -453,7 +476,7 @@
       } else {
         content.innerHTML = issues.map(i => `
           <div class="issue-item">
-            <div style="font-weight:800; margin-bottom:4px; font-size:13px; color:var(--status-red);">[ACTIVE ISSUE]</div>
+            <div style="font-weight:800; margin-bottom:4px; font-size:13px; color:var(--status-red);">[ACTIVE PENDING ISSUE]</div>
             <div style="color:#334155; margin-bottom:6px; font-weight:500;">${i.details}</div>
             <div style="font-size:10px; color:#94a3b8; font-weight:600;">${i.date}</div>
           </div>
@@ -467,7 +490,7 @@
       document.getElementById('drawer-overlay').style.display = 'none';
     }
 
-    // Initial Fetch and 2-Minute Polling
+    // Initial Fetch and Auto Polling
     fetchCSV();
     setInterval(fetchCSV, 120000);
   </script>
