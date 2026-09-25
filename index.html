@@ -328,6 +328,7 @@
       });
     }
 
+    // UPDATED FUNCTION: Handles "Resolved", "Fixed", "Cleared", or "Working" correctly
     function processIssues(rows) {
       processedIssues = [];
 
@@ -338,10 +339,13 @@
         const checkEquip = (colVal, detailCol, equipType) => {
           if (colVal && typeof colVal === 'string') {
             const val = colVal.toLowerCase().trim();
-            const isExplicitIssue = !val.includes('good') && !val.includes('no issue') && val !== '';
-            const isResolved = val.includes('resolved');
+            
+            // Checks if status is resolved/cleared
+            const isResolved = val.includes('resolved') || val.includes('fixed') || val.includes('cleared');
+            const isGood = val.includes('good') || val.includes('no issue') || val.startsWith('working') || val === '';
 
-            if (isResolved || (isExplicitIssue && !val.startsWith('working'))) {
+            // Only track as active issue if NOT working/good
+            if (!isGood) {
               processedIssues.push({
                 campus: campus,
                 equipment: equipType,
@@ -365,11 +369,11 @@
       let totalEquipUnits = 0;
       let activeIssueCount = 0;
 
-      // Render Row 1 & Row 2
+      // Render Rows
       renderRowGrid('row-1', campusLayout.row1);
       renderRowGrid('row-2', campusLayout.row2);
 
-      // Render Row 3 Cards into slots
+      // Render Row 3 Slots
       renderSingleCampusCard('cebu-card-slot', campusLayout.row3[0]);
       renderSingleCampusCard('davao-card-slot', campusLayout.row3[1]);
       renderSingleCampusCard('laoag-card-slot', campusLayout.row3[2]);
@@ -389,7 +393,7 @@
         });
       });
 
-      // Update Circle KPI Cards
+      // Update Metric KPI Circles
       document.getElementById('issues-count').innerText = activeIssueCount;
 
       const workingPercent = totalEquipUnits > 0 
@@ -407,9 +411,6 @@
           i.campus.includes(campus.name) && i.equipment === equipKey
         );
 
-        // Strict Red vs. Green Logic:
-        // Turn RED only if there is an active unresolved issue.
-        // Turn GREEN if there are no issues OR if all reported issues are marked as resolved.
         const hasActiveIssue = matchedIssues.some(i => !i.isResolved);
         const statusClass = hasActiveIssue ? 'status-error' : 'status-ok';
 
@@ -455,7 +456,7 @@
       const content = document.getElementById('drawer-content');
       
       if (matched.length === 0) {
-        content.innerHTML = `<p style="color: var(--status-green); font-weight: 800; text-align: center; margin-top: 20px;"><i class="fa-solid fa-circle-check"></i> All systems operational. No issues reported.</p>`;
+        content.innerHTML = `<p style="color: var(--status-green); font-weight: 800; text-align: center; margin-top: 20px;"><i class="fa-solid fa-circle-check"></i> All systems operational. No active issues.</p>`;
       } else {
         content.innerHTML = matched.map(i => `
           <div class="issue-item ${i.isResolved ? 'resolved' : ''}">
@@ -475,7 +476,7 @@
       document.getElementById('drawer-overlay').style.display = 'none';
     }
 
-    // Initial Fetch and 2-Minute Polling
+    // Initial Fetch and 2-Minute Automatic Polling
     fetchCSV();
     setInterval(fetchCSV, 120000);
   </script>
