@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CAMPUS MEDIA MONITOR MATRIX</title>
+  <title>MEDIA SERVICE MONITORING DASHBOARD</title>
   
   <!-- FontAwesome & PapaParse -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -11,13 +11,14 @@
 
   <style>
     :root {
-      --bg-dark: #ffffff; /* Clean white canvas to contrast royal blue cards */
-      --card-bg: #2b32f6; /* Matching precise deep royal blue */
+      --bg-dark: #ffffff;
+      --header-red: #e11d48;    /* Exact header red banner */
+      --card-bg: #2b32f6;       /* Exact royal blue card color */
       --card-title-color: #ffffff;
-      --status-green: #7cd936; /* Matching precise lime green pills */
-      --status-red: #ef4444;   /* Alert red */
-      --status-orange: #f59e0b;/* Resolved log orange */
-      --text-main: #1e293b;
+      --status-green: #7cd936;  /* Exact vibrant lime green pill color */
+      --status-red: #ef4444;    /* Active issue red */
+      --status-orange: #f59e0b; /* Resolved issue orange */
+      --text-main: #0f172a;
       --panel-border: #e2e8f0;
     }
 
@@ -38,86 +39,48 @@
     .container {
       max-width: 1440px;
       margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
+    /* RED BANNER HEADER */
     header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      border-bottom: 2px solid var(--panel-border);
-      padding-bottom: 16px;
-      flex-wrap: wrap;
-      gap: 12px;
+      width: 100%;
+      max-width: 850px;
+      background-color: var(--header-red);
+      color: #ffffff;
+      text-align: center;
+      padding: 14px 24px;
+      border-radius: 16px;
+      margin-bottom: 28px;
+      box-shadow: 0 6px 16px rgba(225, 29, 72, 0.3);
     }
 
-    .title-area h1 {
-      font-size: 20px;
+    header h1 {
+      font-size: 24px;
       font-weight: 900;
-      letter-spacing: 0.5px;
-      color: #0f172a;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .legend {
-      display: flex;
-      gap: 16px;
-      font-size: 11px;
-      font-weight: 800;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
-      background: #f8fafc;
-      padding: 8px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--panel-border);
     }
 
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-    }
-
-    .dot.green { background-color: var(--status-green); }
-    .dot.red { background-color: var(--status-red); }
-    .dot.orange { background-color: var(--status-orange); }
-
-    /* CAMPUS GRID SYSTEM MATCHING EXACT LAYOUT */
+    /* CAMPUS GRID SYSTEM */
     .campus-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 20px;
+      width: 100%;
       margin-bottom: 20px;
     }
 
-    .campus-grid.centered-3 {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 20px;
-    }
-
-    .campus-grid.centered-3 .campus-card:first-child {
-      grid-column-start: 2;
-    }
-
     @media (max-width: 1200px) {
-      .campus-grid, .campus-grid.centered-3 {
+      .campus-grid {
         grid-template-columns: repeat(3, 1fr);
-      }
-      .campus-grid.centered-3 .campus-card:first-child {
-        grid-column-start: auto;
       }
     }
 
     @media (max-width: 768px) {
-      .campus-grid, .campus-grid.centered-3 {
+      .campus-grid {
         grid-template-columns: repeat(1, 1fr);
       }
     }
@@ -125,20 +88,20 @@
     /* CARD STYLING */
     .campus-card {
       background-color: var(--card-bg);
-      border-radius: 28px;
+      border-radius: 32px;
       padding: 24px 18px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 10px 25px rgba(43, 50, 246, 0.25);
+      box-shadow: 0 10px 22px rgba(43, 50, 246, 0.25);
     }
 
     .campus-title {
       font-size: 18px;
       font-weight: 900;
       color: var(--card-title-color);
-      letter-spacing: 0.8px;
+      letter-spacing: 1px;
       text-transform: uppercase;
       margin-bottom: 4px;
     }
@@ -186,6 +149,38 @@
       0% { opacity: 1; }
       50% { opacity: 0.75; }
       100% { opacity: 1; }
+    }
+
+    /* CIRCULAR KPI METRIC CARDS */
+    .circle-card {
+      background-color: var(--card-bg);
+      border-radius: 50%;
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      max-width: 220px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #ffffff;
+      text-align: center;
+      padding: 16px;
+      box-shadow: 0 10px 22px rgba(43, 50, 246, 0.25);
+    }
+
+    .circle-card .label {
+      font-size: 16px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      line-height: 1.1;
+    }
+
+    .circle-card .value {
+      font-size: 34px;
+      font-weight: 900;
+      margin-top: 4px;
     }
 
     /* DETAILS DRAWER */
@@ -246,16 +241,9 @@
 <body>
 
   <div class="container">
+    <!-- RED BANNER HEADER -->
     <header>
-      <div class="title-area">
-        <h1><i class="fa-solid fa-desktop" style="color: var(--card-bg)"></i> CAMPUS MEDIA MONITOR MATRIX</h1>
-      </div>
-      
-      <div class="legend">
-        <div class="legend-item"><div class="dot green"></div> Operational</div>
-        <div class="legend-item"><div class="dot red"></div> Active Issue</div>
-        <div class="legend-item"><div class="dot orange"></div> Resolved Log</div>
-      </div>
+      <h1>MEDIA SERVICE MONITORING DASHBOARD</h1>
     </header>
 
     <!-- TOP ROW (5 FULL CAMPUSES) -->
@@ -264,8 +252,25 @@
     <!-- MIDDLE ROW (5 SATELLITE CAMPUSES) -->
     <div class="campus-grid" id="row-2"></div>
 
-    <!-- BOTTOM ROW (3 SATELLITE CAMPUSES CENTERED) -->
-    <div class="campus-grid centered-3" id="row-3"></div>
+    <!-- BOTTOM ROW (ISSUES CIRCLE + 3 CAMPUSES + WORKING % CIRCLE) -->
+    <div class="campus-grid" id="row-3">
+      <!-- Issues Metric Circle (Left) -->
+      <div class="circle-card">
+        <div class="label">ISSUES</div>
+        <div class="value" id="issues-count">0</div>
+      </div>
+
+      <!-- Center 3 Campuses placeholder containers dynamically injected -->
+      <div id="cebu-card-slot" style="display:contents;"></div>
+      <div id="davao-card-slot" style="display:contents;"></div>
+      <div id="laoag-card-slot" style="display:contents;"></div>
+
+      <!-- Working Percentage Circle (Right) -->
+      <div class="circle-card">
+        <div class="label">WORKING</div>
+        <div class="value" id="working-percent">100%</div>
+      </div>
+    </div>
   </div>
 
   <!-- ISSUE DETAILS DRAWER -->
@@ -284,7 +289,7 @@
   <script>
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRAwSFIPM0NSulyIUxFBfmf_of8ZeqBjUa8SoIC9JuNYW24BVCx83QorbH3c70IzTLThmX_FmXkJVUP/pub?gid=417772&single=true&output=csv';
 
-    // Exact Campus Layout Structure from Image
+    // Exact Campus Layout Structure
     const campusLayout = {
       row1: [
         { name: 'MAIN', items: ['Video Wall', 'Link Status', 'Camera', 'Monitor', 'LED Lights'] },
@@ -363,48 +368,92 @@
     }
 
     function renderDashboard() {
-      renderRow('row-1', campusLayout.row1);
-      renderRow('row-2', campusLayout.row2);
-      renderRow('row-3', campusLayout.row3);
+      let totalEquipUnits = 0;
+      let activeIssueCount = 0;
+
+      // Render Row 1 & Row 2
+      renderRowGrid('row-1', campusLayout.row1);
+      renderRowGrid('row-2', campusLayout.row2);
+
+      // Render Row 3 Cards into slots
+      renderSingleCampusCard('cebu-card-slot', campusLayout.row3[0]);
+      renderSingleCampusCard('davao-card-slot', campusLayout.row3[1]);
+      renderSingleCampusCard('laoag-card-slot', campusLayout.row3[2]);
+
+      // Calculate totals across all campuses
+      const allCampuses = [...campusLayout.row1, ...campusLayout.row2, ...campusLayout.row3];
+      
+      allCampuses.forEach(campus => {
+        campus.items.forEach(equipKey => {
+          totalEquipUnits++;
+          const matched = processedIssues.filter(i => 
+            i.campus.includes(campus.name) && i.equipment === equipKey && !i.isResolved
+          );
+          if (matched.length > 0) {
+            activeIssueCount++;
+          }
+        });
+      });
+
+      // Update Circle KPI Cards
+      document.getElementById('issues-count').innerText = activeIssueCount;
+
+      const workingPercent = totalEquipUnits > 0 
+        ? Math.round(((totalEquipUnits - activeIssueCount) / totalEquipUnits) * 100) 
+        : 100;
+
+      document.getElementById('working-percent').innerText = `${workingPercent}%`;
     }
 
-    function renderRow(elementId, campuses) {
+    function createCampusCardHTML(campus) {
+      let buttonsHTML = `<div class="campus-title">${campus.name}</div>`;
+
+      campus.items.forEach(equipKey => {
+        const matchedIssues = processedIssues.filter(i => 
+          i.campus.includes(campus.name) && i.equipment === equipKey
+        );
+
+        let statusClass = 'status-ok';
+        const hasActive = matchedIssues.some(i => !i.isResolved);
+        const hasResolved = matchedIssues.some(i => i.isResolved);
+
+        if (hasActive) {
+          statusClass = 'status-error';
+        } else if (hasResolved) {
+          statusClass = 'status-resolved';
+        }
+
+        const label = equipLabels[equipKey] || equipKey;
+
+        buttonsHTML += `
+          <button class="equip-button ${statusClass}" onclick="openDetails('${campus.name}', '${equipKey}')">
+            ${label}
+          </button>
+        `;
+      });
+
+      return buttonsHTML;
+    }
+
+    function renderRowGrid(elementId, campuses) {
       const container = document.getElementById(elementId);
       container.innerHTML = '';
 
       campuses.forEach(campus => {
         const card = document.createElement('div');
         card.className = 'campus-card';
-
-        let buttonsHTML = `<div class="campus-title">${campus.name}</div>`;
-
-        campus.items.forEach(equipKey => {
-          const matchedIssues = processedIssues.filter(i => 
-            i.campus.includes(campus.name) && i.equipment === equipKey
-          );
-
-          let statusClass = 'status-ok';
-          const hasActive = matchedIssues.some(i => !i.isResolved);
-          const hasResolved = matchedIssues.some(i => i.isResolved);
-
-          if (hasActive) {
-            statusClass = 'status-error';
-          } else if (hasResolved) {
-            statusClass = 'status-resolved';
-          }
-
-          const label = equipLabels[equipKey] || equipKey;
-
-          buttonsHTML += `
-            <button class="equip-button ${statusClass}" onclick="openDetails('${campus.name}', '${equipKey}')">
-              ${label}
-            </button>
-          `;
-        });
-
-        card.innerHTML = buttonsHTML;
+        card.innerHTML = createCampusCardHTML(campus);
         container.appendChild(card);
       });
+    }
+
+    function renderSingleCampusCard(slotId, campus) {
+      const slot = document.getElementById(slotId);
+      const card = document.createElement('div');
+      card.className = 'campus-card';
+      card.innerHTML = createCampusCardHTML(campus);
+      slot.replaceWith(card);
+      card.id = slotId;
     }
 
     function openDetails(campusName, equipKey) {
